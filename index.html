@@ -1,0 +1,81 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>TrailTales | Your Adventure Awaits</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header class="game-header">
+        <h1 class="game-logo">🌿 TrailTales</h1>
+        <p class="tagline">Where nature becomes your story</p>
+    </header>
+
+    <main id="game">
+
+        <p id="progress-text" aria-live="polite"></p>
+        <p id="save-status" hidden></p>
+
+        <h2 id="scene-title" tabindex="-1"></h2>
+        <p id="story-text"></p>
+
+        <div id="question-container" hidden>
+            <h3 id="question-text"></h3>
+            <div id="choices"></div>
+        </div>
+
+        <div id="fact-container" hidden>
+            <h3>🔍 Explorer Discovery!</h3>
+            <p id="fact-text"></p>
+        </div>
+
+        <button id="continue-button" hidden>
+            Continue Adventure →
+        </button>
+
+        <details id="explorer-journal" hidden>
+            <summary>📓 Explorer Journal</summary>
+            <p id="journal-empty">Your observations will appear here as you explore.</p>
+            <ul id="journal-entries"></ul>
+        </details>
+
+    </main>
+
+<!-- Optional educational lesson -->
+<dialog id="learning-dialog" aria-labelledby="learning-title">
+    <div class="lesson-header">
+        <span>🌿 EXPLORER'S LIBRARY</span>
+        <button
+            id="close-lesson"
+            type="button"
+            aria-label="Close lesson"
+        >✕</button>
+    </div>
+
+    <h2 id="learning-title"></h2>
+
+    <div id="learning-content"></div>
+
+    <div id="learning-visual"></div>
+
+    <div class="lesson-actions">
+        <button id="learn-more" type="button">
+            📖 Learn More
+        </button>
+
+        <button id="learning-challenge" type="button">
+            🔍 Try It Outdoors
+        </button>
+    </div>
+</dialog>
+
+
+    <script src="quests/forest.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
