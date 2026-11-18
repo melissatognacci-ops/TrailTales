@@ -300,3 +300,9 @@ When continuing in VS Code or a new chat, share this `PROJECT.md` and the releva
 7. Keep the user's observations central, with stories adapting to them.
 
 **Product north star:** *Children put down their phones, look around, and become more curious about the world than when they started.*
+
+## V2 implementation update
+
+The v2 folder contains a standalone playable copy and uses its own browser save key. The forest already has five chapters, branching routes, a journal, and Save & Resume. This iteration deepens the forest investigation, carries the listening clue into Chapter 2, and adds inline science links, a leaf symmetry diagram, related lessons, and a qualitative photosynthesis light demo. The other four adventures retain their shorter quest structure.
+
+The light demo uses the photosynthesis overview in [OpenStax Biology 2e](https://openstax.org/books/biology-2e/pages/8-1-overview-of-photosynthesis). Its conditions are illustrative, without numerical rates or predictions for a particular plant.

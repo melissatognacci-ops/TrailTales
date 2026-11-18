@@ -1,6 +1,6 @@
 const forestChapters = [
-    "The Guardian’s Call", "The First Discovery", "The Hidden World",
-    "The Nature Experiment", "The Atlas Awakens"
+    "The Guardian’s Call", "The First Discovery", "The Invisible Threads",
+    "The Experiment of Wonders", "The Atlas Awakens"
 ];
 const forestChapterMinutes = [10, 12, 12, 12, 10];
 
@@ -26,22 +26,24 @@ const forestPaths = {
         opening: "Luma hovers near your discovery and lifts her lantern. “Look at that! A leaf may look ordinary, but inside it is a remarkable system. First, let’s investigate what makes your leaf special.”",
         fact: "Leaves can use light to make sugars through photosynthesis.",
         details: [
-            forestQuestion("The Leaf That Held the Sun", "Trace the outline with your eyes. If you can see several leaves from your safe spot, compare two.", "What shape catches your eye?", [
-                forestChoice("oval", "Round or oval", "Leaves on the same plant often share an outline."),
-                forestChoice("pointed", "Long or pointed", "Some plants have narrow leaves. Shape is one clue people use to identify plants."),
-                forestChoice("divided", "Lobed or divided", "A single leaf can have lobes, or it can be divided into smaller leaflets.")
+            forestQuestion("The Leaf That Held the Sun", "Trace the outline with your eyes. Imagine a line down the middle. Do the sides look alike? Tap leaf symmetry to see a cartoon example. Then notice the overall shape.", "What shape catches your eye?", [
+                forestChoice("oval", "Round or oval", "Leaves on the same plant often share an outline.", "Compare the color near the middle with the color near the rounded edge."),
+                forestChoice("pointed", "Long or pointed", "Some plants have narrow leaves. Shape is one clue people use to identify plants.", "Compare the color at the tip with the color near the base."),
+                forestChoice("divided", "Lobed or divided", "A single leaf can have lobes, or it can be divided into smaller leaflets.", "Choose two lobes or sections. Do they share the same color?")
             ]),
             forestQuestion("A Closer Look at Color", "Compare two parts of the same leaf, or two leaves you can see. Notice where light is falling.", "What color pattern do you see?", [
                 forestChoice("green", "Mostly one shade of green", "Chlorophyll helps leaves capture light and makes many leaves look green."),
                 forestChoice("mixed", "More than one shade or color", "Leaves contain different pigments, and lighting can also change how their colors look."),
                 forestChoice("dry", "Yellow or brown areas", "Leaves can change color as they age or dry. Color alone does not tell us what caused the change.")
             ]),
-            forestQuestion("The Leaf’s Surface", "Look for shine, fine hairs, or wrinkles. You can look closely without touching or picking the leaf.", "What does the surface look like?", [
+            forestQuestion("The Leaf’s Surface", "Look for shine, fine hairs, or wrinkles. If a breeze moves the leaf, notice whether it bends easily. Leave the leaf where it is.", "What do you notice about the surface?", [
                 forestChoice("shiny", "Smooth or shiny", "A waxy outer layer can slow water loss and may look shiny."),
                 forestChoice("rough", "Fuzzy or ridged", "Some plants have tiny leaf hairs that can help protect the leaf."),
-                forestChoice("holes", "It has holes", "Some insects chew holes in leaves. Holes can also form in other ways.")
+                forestChoice("holes", "It has holes or marks", "Some insects chew holes in leaves. Holes and marks can also form in other ways."),
+                forestChoice("bend", "It bends or curls", "Leaves can curl for different reasons, including how they grow or how they dry."),
+                forestChoice("skip-touch", "I don’t want to touch it", "You can compare color, shine, and shape using your eyes alone.")
             ]),
-            forestQuestion("A Map of Tiny Roads", "See if you can follow a line from the leaf’s base toward its tip or edge.", "What do the lines look like?", [
+            forestQuestion("A Map of Tiny Roads", "Look for leaf veins in indirect light. See if you can follow a line from the leaf’s base toward its tip or edge. Leave it in place.", "What do the lines look like?", [
                 forestChoice("network", "Branches or a net", "Veins carry water and sugars through the leaf. In many leaves, smaller veins branch off larger ones."),
                 forestChoice("parallel", "Lines running side by side", "Grass and many other plants have veins that run roughly parallel."),
                 forestChoice("hidden", "I can see the leaf but no clear lines", "On some leaves, veins are hard to see from a distance.")
@@ -204,7 +206,7 @@ Before you begin, choose a safe place with a grown-up. You can explore from wher
         },
         {
             id: "listen", chapter: 1, title: "The Listening Spell",
-            prompt: "Luma lifts her lantern. “The Atlas can only wake when we discover what the world is telling us.”\n\nStay still in your safe spot. Listen nearby, then farther away. Give quieter sounds time to emerge. If you can’t hear the sounds around you, notice movement or choose the quiet option.",
+            prompt: "Luma lifts her lantern. “The Atlas can only wake when we discover what the world is telling us.”\n\nStay still in your safe spot. Listen nearby, then farther away. Together these sounds make a soundscape. If you can’t hear the sounds around you, notice movement or choose the quiet option.",
             question: "What do you hear?", choices: forestSounds, journalPrompt: "I heard"
         },
         { id: "storm", chapter: 1, storm: true },
@@ -214,6 +216,8 @@ Before you begin, choose a safe place with a grown-up. You can explore from wher
 
 Luma opens the Atlas. A page is completely blank. “This page used to tell the story of how living things survive. Perhaps a clue is right in front of us.”
 
+A tiny mark appears in the margin. “That’s our first clue. Let’s see what it can help us notice next.”
+
 Look close by, then farther away. Find something you can observe from your safe area. Leave it where it is.`,
             question: "What have you discovered?", journalPrompt: "I noticed",
             choices: Object.entries(forestPaths).map(([id, route]) => forestChoice(id, route.label, route.fact))
@@ -222,7 +226,7 @@ Look close by, then farther away. Find something you can observe from your safe 
 
     if (!path) return scenes;
     scenes.push(
-        { id: "investigation", chapter: 2, chapterStart: true, title: path.name, prompt: path.opening + "\n\nSpend a few minutes looking for details. Try comparing what you can see nearby with something farther away.", next: "Look closer" },
+        { id: "investigation", chapter: 2, chapterStart: true, title: path.name, prompt: path.opening + "\n\nThe mark in the Atlas points back to your first clue. " + sound.clue + " Now try that same kind of careful noticing on your new discovery.", next: "Look closer" },
         ...path.details.map((detail, index) => ({ ...detail, id: "detail-" + index, chapter: 2, journalPrompt: detail.question, choices: [...detail.choices, ...forestFallbacks] })),
         { ...path.hidden, id: "hidden", chapter: 3, chapterStart: true, journalPrompt: "My habitat clue", choices: [...path.hidden.choices, ...forestFallbacks] },
         { ...path.experiment, id: "experiment", chapter: 4, chapterStart: true, journalPrompt: "My experiment", choices: [...path.experiment.choices, ...forestFallbacks] },

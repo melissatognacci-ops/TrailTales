@@ -5,6 +5,7 @@
 
 // HTML elements
 const sceneTitle = document.getElementById("scene-title");
+const sceneImage = document.getElementById("scene-image");
 const storyText = document.getElementById("story-text");
 const progressText = document.getElementById("progress-text");
 const questionContainer = document.getElementById("question-container");
@@ -17,8 +18,9 @@ const saveStatus = document.getElementById("save-status");
 const journal = document.getElementById("explorer-journal");
 const journalEmpty = document.getElementById("journal-empty");
 const journalEntries = document.getElementById("journal-entries");
-const saveKey = "trailtales.adventure.v1";
+const saveKey = "trailtales.adventure.v3";
 let forestRun = null;
+let investigationRuns = [];
 
 // Player observations
 const discoveries = {
@@ -34,6 +36,8 @@ const discoveries = {
 
 const environments = {
     forest: {
+        image: "assets/images/scenes/forest.jpg",
+        imageAlt: "A trail winding past an ancient tree and woodland ferns.",
         name: "🌳 Forest / Trail",
         title: "The Lost Forest Guardian",
         opening:
@@ -82,6 +86,8 @@ const environments = {
     },
 
     beach: {
+        image: "assets/images/scenes/beach.jpg",
+        imageAlt: "Teal waves meeting a sandy beach edged with coastal grasses.",
         name: "🌊 Beach / Coast",
         title: "The Secret of the Tides",
         opening:
@@ -92,6 +98,8 @@ const environments = {
         observations: [
             {
                 label: "🐚 A shell",
+                value: "shell",
+                investigation: "shell",
                 story: "A magical pearl glimmers nearby!",
                 fact: "Many seashells were made by mollusks.",
                 question: "What do you notice about the shell?",
@@ -130,6 +138,8 @@ const environments = {
     },
 
     desert: {
+        image: "assets/images/scenes/desert.jpg",
+        imageAlt: "Golden sandstone formations rising above a desert dotted with cacti.",
         name: "🌵 Desert",
         title: "The Desert's Hidden Secret",
         opening:
@@ -140,6 +150,8 @@ const environments = {
         observations: [
             {
                 label: "🌵 A desert plant",
+                value: "desert-plant",
+                investigation: "desert-plant",
                 story: "A green guardian glows in the sunlight!",
                 fact: "Many desert plants have adaptations that help conserve water.",
                 question: "What do you notice about the plant?",
@@ -178,6 +190,8 @@ const environments = {
     },
 
     garden: {
+        image: "assets/images/scenes/garden.jpg",
+        imageAlt: "A garden path between wildflowers and leafy shade trees.",
         name: "🌻 Backyard / Park",
         title: "The Secret Garden",
         opening:
@@ -226,6 +240,8 @@ const environments = {
     },
 
     other: {
+        image: "assets/images/scenes/other.jpg",
+        imageAlt: "A meadow path leading toward distant hills.",
         name: "✨ Somewhere Else",
         title: "The Anywhere Adventure",
         opening:
@@ -325,7 +341,17 @@ function withFallbacks(options) {
 // REUSABLE GAME UI
 // ============================================
 
+function setSceneImage(src, alt = "") {
+    sceneImage.parentElement.hidden = !src;
+    sceneImage.alt = alt;
+    if (src) sceneImage.src = src;
+    else sceneImage.removeAttribute("src");
+}
+
+sceneImage.addEventListener("error", () => setSceneImage());
+
 function clearScene() {
+    setSceneImage();
     questionContainer.hidden = true;
     factContainer.hidden = true;
     continueButton.hidden = true;
@@ -345,7 +371,12 @@ function renderJournal() {
         ["I noticed", discoveries.observation],
         ["I looked closer", discoveries.detail]
     ];
-    for (const [prompt, choice] of entries) {
+    const investigationEntries = investigationRuns.flatMap(run =>
+        investigationResults(run).map(({ step, choice }) => [
+            deepDiscoveries[run.id].title + " · " + step.question, choice
+        ])
+    );
+    for (const [prompt, choice] of [...entries, ...investigationEntries]) {
         if (!choice) continue;
 
         const entry = document.createElement("li");
@@ -375,7 +406,8 @@ function enterScene(scene, progress) {
                 sound: discoveries.sound?.value,
                 observation: choiceId(discoveries.observation),
                 detail: choiceId(discoveries.detail),
-                forestActions: forestRun?.actions
+                forestActions: forestRun?.actions,
+                investigationRuns: investigationRuns.length ? investigationRuns : undefined
             }));
             saveStatus.textContent = "Progress saved in this browser.";
         } else {
@@ -398,7 +430,23 @@ function showChoices(question, options, callback) {
 
     options.forEach(option => {
         const button = document.createElement("button");
-        button.textContent = option.label;
+        button.type = "button";
+        if (option.image) {
+            button.className = "choice-card";
+            const thumbnail = document.createElement("img");
+            thumbnail.className = "choice-card-image";
+            thumbnail.alt = "";
+            thumbnail.loading = "lazy";
+            thumbnail.addEventListener("error", () => { thumbnail.hidden = true; });
+            thumbnail.src = option.image;
+
+            const label = document.createElement("span");
+            label.className = "choice-card-label";
+            label.textContent = option.label;
+            button.append(thumbnail, label);
+        } else {
+            button.textContent = option.label;
+        }
 
         button.addEventListener("click", () => {
             callback(option);
@@ -439,6 +487,7 @@ function showDiscovery(scene, progress, choice, nextScene) {
 
 function startQuest() {
     forestRun = null;
+    investigationRuns = [];
     discoveries.environment = null;
     discoveries.sound = null;
     discoveries.observation = null;
@@ -455,7 +504,8 @@ function startQuest() {
     const options = Object.entries(environments)
         .map(([id, environment]) => ({
             label: environment.name,
-            value: id
+            value: id,
+            image: environment.image
         }));
 
     showChoices(
@@ -513,14 +563,19 @@ function showForestScene() {
     if (scene.chapterStart) progress += " · About " + forestChapterMinutes[chapterIndex] + " min";
     if (scene.id === "journal") progress = "Adventure complete · Journal reflection · About 4 min";
     enterScene("forest", progress);
+    if (scene.id === "opening") {
+        setSceneImage(environments.forest.image, environments.forest.imageAlt);
+    }
     sceneTitle.textContent = scene.title;
-    storyText.textContent = scene.prompt;
+    const lastChoice = forestRun.entries.at(-1)?.[1];
+    const leafFollowUp = forestRun.pathId === "leaf" && scene.id === "detail-1" && lastChoice.clue;
+    showEducationalFact(leafFollowUp ? leafFollowUp + "\n\n" + scene.prompt : scene.prompt, storyText);
     if (scene.id === "atlas") {
         const firstClue = forestRun.entries[2][1].label;
         const experiment = forestRun.entries.at(-1)[1].label;
-        storyText.textContent += "\n\nLuma writes your clues in the Atlas.\n" +
+        storyText.append("\n\nLuma writes your clues in the Atlas.\n" +
             "A detail you noticed: " + firstClue + "\n" +
-            "What happened when you checked: " + experiment;
+            "What happened when you checked: " + experiment);
     }
     if (scene.id === "journal") {
         journal.open = true;
@@ -528,7 +583,6 @@ function showForestScene() {
         return;
     }
 
-    const lastChoice = forestRun.entries.at(-1)?.[1];
     if (lastChoice && forestRun.actions.at(-1) !== null) {
         showEducationalFact(lastChoice.fact);
         factContainer.hidden = false;
@@ -552,6 +606,7 @@ function showIntroduction() {
     const environment = environments[discoveries.environment];
 
     enterScene("introduction", "Chapter 1 - The Mystery Begins");
+    setSceneImage(environment.image, environment.imageAlt);
     sceneTitle.textContent = environment.title;
     storyText.textContent = environment.opening;
 
@@ -618,7 +673,65 @@ function showObservationQuestion() {
 
 function handleObservation(choice) {
     discoveries.observation = choice;
+    if (choice.investigation) {
+        investigationRuns.push({ id: choice.investigation, answers: [] });
+        showInvestigation();
+        return;
+    }
     showObservationDiscovery();
+}
+
+function investigationResults(run) {
+    return run.answers.map((result, index) => {
+        const step = deepDiscoveries[run.id].steps[index];
+        if (!step || step.id !== result?.step) return null;
+        const choice = discoveryOptions(step).find(option => option.value === result.answer);
+        return choice ? { step, choice } : null;
+    });
+}
+
+function chooseAnotherDiscovery() {
+    discoveries.observation = null;
+    discoveries.detail = null;
+    showObservationQuestion();
+}
+
+function showInvestigation() {
+    const run = investigationRuns.at(-1);
+    const investigation = deepDiscoveries[run.id];
+    const index = run.answers.length;
+    const step = investigation.steps[index];
+    const results = investigationResults(run);
+    const previous = results.at(-1)?.choice;
+    const progress = step ? "Investigation · Observation " + (index + 1) + " of " + investigation.steps.length : "Investigation complete";
+    enterScene("investigation", progress);
+    sceneTitle.textContent = investigation.title;
+
+    if (previous) {
+        showEducationalFact(previous.fact);
+        factContainer.hidden = false;
+    }
+
+    if (!step) {
+        const recap = results.map(({ step: prompt, choice }) => prompt.question + " " + choice.label);
+        showEducationalFact(previous.reaction + "\n\n" + investigation.ending + "\n\nYour Atlas notes\n" + recap.join("\n"), storyText);
+        showChoices("Where would you like to go next?", [
+            { label: "Investigate another discovery", action: chooseAnotherDiscovery },
+            { label: "Return to the main mystery", action: showEnding }
+        ], choice => choice.action());
+        return;
+    }
+
+    const lead = previous ? [previous.reaction, previous.followUp].filter(Boolean).join(" ") : investigation.opening;
+    showEducationalFact(lead + "\n\n" + step.prompt, storyText);
+    showChoices(step.question, discoveryOptions(step), choice => {
+        run.answers.push({ step: step.id, answer: choice.value });
+        showInvestigation();
+    });
+    showContinue("I can’t keep observing this · Choose another discovery", () => {
+        if (run.answers.length === 0) investigationRuns.pop();
+        chooseAnotherDiscovery();
+    });
 }
 
 function showObservationDiscovery() {
@@ -697,6 +810,13 @@ function showEnding() {
             discoveries.detail.label + ".\n\n";
     }
 
+    for (const run of investigationRuns) {
+        const investigation = deepDiscoveries[run.id];
+        if (run.answers.length !== investigation.steps.length) continue;
+        const [first] = investigationResults(run);
+        ending += "The Atlas remembers a clue from " + investigation.title + ". " + first.choice.label + "\n\n";
+    }
+
     ending +=
         "The Guardian whispers:\n" +
         "'The greatest magic is learning to notice " +
@@ -735,6 +855,96 @@ function showStormEnding(checkpoint = "stormEnding") {
 // ==========================================
 
 const library = {
+    mollusk: {
+        title: "Mollusks",
+        simple: "A mollusk is a soft-bodied animal. Snails, clams, and octopuses are all mollusks.",
+        deeper: "Many mollusks have a hard shell made by a layer of body tissue called the mantle. Others, such as most octopuses, have no outside shell.",
+        challenge: "If you can already see two shells from a safe spot, compare their outlines. Leave both in place.",
+        related: { "Which shells have two halves?": "bivalve", "How does a shell get bigger?": "shell formation" }
+    },
+    bivalve: {
+        title: "Bivalves",
+        simple: "A bivalve is a mollusk with two shell halves joined by a hinge. Clams and mussels are examples.",
+        deeper: "Each half is called a valve. Muscles can pull the valves shut. Many bivalves draw water through their bodies and filter out tiny food particles.",
+        challenge: "If you can safely see a fan-shaped shell, look for lines spreading from its narrow end. Leave it facing the way you found it.",
+        related: { "What other animals make shells?": "mollusk" }
+    },
+    "shell formation": {
+        title: "Shell Formation",
+        simple: "Many mollusks make their own shells. As they grow, they add new material to the shell.",
+        deeper: "The mantle adds material containing calcium carbonate. Adding material near the edge can make the shell larger. Adding it along the inside can make the shell thicker.",
+        challenge: "Without moving a shell, look for curved lines near its edge. Can you see where the lines become closer together?",
+        related: { "What can wear a shell down?": "abrasion" }
+    },
+    abrasion: {
+        title: "Abrasion",
+        simple: "Abrasion happens when rubbing wears down a surface.",
+        deeper: "Moving grains of sand can scrape a shell or rock a little at a time. A rounded edge is one possible clue, and surfaces can also start out smooth.",
+        challenge: "Compare a rounded edge and a sharp-looking edge on objects you can see from a safe spot. Leave them in place.",
+        related: { "Where can worn pieces end up?": "sediment", "How do grains travel?": "erosion" }
+    },
+    sediment: {
+        title: "Sediment",
+        simple: "Sediment is loose material, such as grains of sand, bits of shells, or tiny pieces of rock.",
+        deeper: "Water, wind, ice, or gravity can move pieces of sediment. The pieces can settle when the flow carrying them slows down.",
+        challenge: "From a safe spot, compare two patches of sand or loose ground. Do the grains appear to be the same color or size?",
+        related: { "How can moving grains change surfaces?": "abrasion" }
+    },
+    adaptation: {
+        title: "Adaptations",
+        simple: "An adaptation is an inherited feature that helps living things survive or reproduce in their surroundings.",
+        deeper: "Over many generations, helpful inherited features can become more common. In dry places, different plants may have features that help them store water or slow water loss.",
+        challenge: "Compare the outlines of two plants you can see from your safe spot. What features might help each one where it grows?",
+        related: { "Which plants store water in thick parts?": "succulent" }
+    },
+    succulent: {
+        title: "Succulents",
+        simple: "A succulent is a plant that stores water in fleshy parts, such as its leaves, stems, or roots.",
+        deeper: "Cacti are succulents that usually store water in their stems. Other succulents can store it in thick leaves or roots.",
+        challenge: "From a distance, compare the thickness of visible parts of two plants. If you can see only one plant, compare two of its parts.",
+        related: { "How do plants lose water?": "transpiration" }
+    },
+    transpiration: {
+        title: "Transpiration",
+        simple: "Transpiration is the loss of water vapor from a plant, mostly through tiny openings in its leaves.",
+        deeper: "Water can move up from the roots and evaporate inside leaves. It leaves as vapor through tiny openings called stomata. Different plants and conditions affect how fast this happens.",
+        challenge: "Compare a shaded plant and one in a brighter spot from a safe distance. How might the conditions around the two plants differ?",
+        related: { "Where might a cooler patch form?": "microhabitat" }
+    },
+    microhabitat: {
+        title: "Microhabitats",
+        simple: "A microhabitat is a small part of a habitat with its own conditions, such as a patch of shade under a plant.",
+        deeper: "A shaded patch and a sunny patch close together can have different temperatures, light, or moisture. These differences can affect which living things use each patch.",
+        challenge: "Look at a small shaded patch and the ground beside it. Is there a visible difference between the two?",
+        related: { "What makes a place a habitat?": "habitat" }
+    },
+    "leaf symmetry": {
+        title: "Leaf Symmetry",
+        simple: "A leaf has approximate mirror symmetry when its two sides have nearly the same outline on either side of a middle line.",
+        deeper: "Imagine folding the leaf along its middle line. Similar sides would nearly overlap. A tear, a curled edge, or the way the leaf grew can make its sides look different.",
+        challenge: "From your safe spot, pick a leaf you can see. Imagine a line from base to tip. How closely do the two outlines match?",
+        related: { "What do the leaf’s lines do?": "leaf veins" }
+    },
+    "leaf veins": {
+        title: "Leaf Veins",
+        simple: "Veins are the lines you can sometimes see in a leaf. They carry water and sugars through the plant.",
+        deeper: "Each vein contains tiny tubes. Some bring water and dissolved minerals to the leaf. Others carry sugars made by photosynthesis to other parts of the plant.",
+        challenge: "Look at a leaf from where you are. Can you see veins branching or running side by side? Use indirect light and leave the leaf in place.",
+        related: { "How do leaves make sugars?": "photosynthesis", "Do the two sides match?": "leaf symmetry" }
+    },
+    soundscape: {
+        title: "Soundscapes",
+        simple: "A soundscape is all the sounds you can hear in a place.",
+        deeper: "Wind, water, animals, and people can all contribute to a soundscape. Nearby sounds can mask quieter ones, and the sounds in a place can change over time.",
+        challenge: "From one safe spot, see if the sounds you notice change between two quiet pauses."
+    },
+    "food web": {
+        title: "Food Webs",
+        simple: "A food web shows how living things get energy and nutrients from one another.",
+        deeper: "Plants use light to make sugars. Some animals eat plants, and others eat those animals. Many organisms have more than one food source, so their feeding connections form a web.",
+        challenge: "Look for a plant and imagine one animal that could eat part of it. What else might that animal eat?",
+        related: { "Where does a plant get its energy?": "photosynthesis", "How does a place support life?": "habitat" }
+    },
     bark: {
         title: "Tree Bark",
         simple: "Bark covers a tree’s trunk and branches. Its outer layers help protect the living tissues underneath.",
@@ -765,6 +975,11 @@ const library = {
 
     photosynthesis: {
         title: "Photosynthesis",
+        related: {
+            "Why are many leaves green?": "chlorophyll",
+            "How does water reach a leaf?": "leaf veins",
+            "How does plant food support animals?": "food web"
+        },
         simple:
             "Plants use sunlight, water, and carbon dioxide " +
             "to make sugars that help them grow. " +
@@ -858,48 +1073,86 @@ const closeLessonButton =
     document.getElementById("close-lesson");
 
 let activeLesson = null;
+const lessonHistory = [];
+const previousLesson = document.getElementById("previous-lesson");
+const curiosityTrail = document.getElementById("curiosity-trail");
+const relatedLessons = document.getElementById("related-lessons");
 
-// Show the requested lesson
 function openLesson(topic) {
+    lessonHistory.length = 0;
+    renderLesson(topic);
+    learningDialog.showModal();
+}
+
+function renderLesson(topic) {
     const lesson = library[topic];
-
-    if (!lesson) return;
-
     activeLesson = topic;
-
     learningTitle.textContent = lesson.title;
     learningContent.textContent = lesson.simple;
-
     learningVisual.replaceChildren();
+    relatedLessons.replaceChildren();
+    previousLesson.hidden = lessonHistory.length === 0;
+    curiosityTrail.hidden = !lesson.related;
 
-    learnMoreButton.hidden = false;
-    challengeButton.hidden = false;
-
-    // Simple animated illustration for photosynthesis
-    if (topic === "photosynthesis") {
-        const visual = document.createElement("div");
-        visual.className = "photosynthesis-animation";
-
-        const sun = document.createElement("span");
-        sun.textContent = "☀️";
-
-        const plant = document.createElement("span");
-        plant.textContent = "🌱";
-
-        const water = document.createElement("span");
-        water.textContent = "💧";
-
-        const air = document.createElement("span");
-        air.textContent = "CO₂";
-
-        const oxygen = document.createElement("span");
-        oxygen.textContent = "O₂ ↑";
-
-        visual.append(sun, water, air, plant, oxygen);
-        learningVisual.appendChild(visual);
+    if (topic === "photosynthesis") showPhotosynthesis();
+    if (topic === "leaf symmetry") {
+        learningVisual.innerHTML = `
+            <figure class="lesson-diagram">
+                <div class="leaf-example" aria-hidden="true"><span></span><span></span></div>
+                <figcaption>Cartoon leaf example. The two green halves mirror each other across the dashed middle line.</figcaption>
+            </figure>`;
     }
+    for (const [question, relatedTopic] of Object.entries(lesson.related ?? {})) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = question;
+        button.addEventListener("click", () => {
+            lessonHistory.push(activeLesson);
+            renderLesson(relatedTopic);
+            learningTitle.focus();
+        });
+        relatedLessons.appendChild(button);
+    }
+}
 
-    learningDialog.showModal();
+previousLesson.addEventListener("click", () => {
+    if (lessonHistory.length === 0) return;
+    renderLesson(lessonHistory.pop());
+    learningTitle.focus();
+});
+
+function showPhotosynthesis() {
+    const diagram = document.createElement("div");
+    diagram.className = "lesson-diagram";
+    diagram.innerHTML = `
+        <p><strong>What arrives</strong><br>Water from the roots · Carbon dioxide from the air · Light energy</p>
+        <p><strong>What the leaf makes</strong><br>Sugars for the plant · Oxygen released into the air</p>`;
+
+    const controls = document.createElement("div");
+    controls.className = "light-controls";
+    const result = document.createElement("p");
+    result.setAttribute("aria-live", "polite");
+    const levels = {
+        "No light": "Without light energy, the leaf cannot keep making sugars through photosynthesis.",
+        "Dim light": "Photosynthesis can happen in dim light, but limited light can slow it down.",
+        "Bright light": "More light can help up to a point. The leaf still needs water and carbon dioxide."
+    };
+    for (const [label, explanation] of Object.entries(levels)) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.setAttribute("aria-pressed", "false");
+        button.addEventListener("click", () => {
+            for (const control of controls.children) {
+                control.setAttribute("aria-pressed", String(control === button));
+            }
+            result.textContent = explanation;
+        });
+        controls.appendChild(button);
+    }
+    result.textContent = "Choose a light level to see what can happen.";
+    diagram.append(controls, result);
+    learningVisual.appendChild(diagram);
 }
 
 // Additional explanation
@@ -1006,8 +1259,24 @@ function restoreQuest() {
         (saved.observation !== undefined && !observation) ||
         (saved.detail !== undefined && !detail)) return false;
 
+    const runs = saved.investigationRuns ?? [];
+    if (!Array.isArray(runs) || (runs.length && (!sound || sound.value === "thunder"))) return false;
+    for (const run of runs) {
+        if (!run || !Object.hasOwn(deepDiscoveries, run.id) ||
+            deepDiscoveries[run.id].environment !== saved.environment ||
+            !Array.isArray(run.answers) ||
+            !investigationResults(run).every(Boolean)) return false;
+    }
+    const activeRun = runs.at(-1);
+    const matchesInvestigation = activeRun && activeRun.id === observation?.investigation;
+
     let scenes;
-    if (detail && sound && sound.value !== "thunder") {
+    if (matchesInvestigation && !detail && saved.scene === "investigation") {
+        scenes = { investigation: showInvestigation };
+    } else if (matchesInvestigation && !detail && saved.scene === "ending" &&
+        activeRun.answers.length === deepDiscoveries[activeRun.id].steps.length) {
+        scenes = { ending: showEnding };
+    } else if (detail && sound && sound.value !== "thunder") {
         scenes = { detailDiscovery: showDetailDiscovery, ending: showEnding };
     } else if (observation && sound && sound.value !== "thunder") {
         scenes = {
@@ -1030,6 +1299,7 @@ function restoreQuest() {
         observation: observation ?? null,
         detail: detail ?? null
     });
+    investigationRuns = runs;
     scenes[saved.scene]();
     return true;
 }
